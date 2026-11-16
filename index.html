@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEO-FIGHT 3D: Arena Fighter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles.css">
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      console.error('[Global Error]', msg, url, line, col, error);
+      var status = document.getElementById('loading-status');
+      if (status) {
+        var filename = url ? url.split('/').pop() : 'inline';
+        status.innerText = "ERROR: " + msg + " (" + filename + ":" + line + ")";
+        status.style.color = "#ff0055";
+      }
+      return false;
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      console.error('[Unhandled Promise Rejection]', event.reason);
+      var status = document.getElementById('loading-status');
+      if (status) {
+        status.innerText = "REJECTION: " + (event.reason ? (event.reason.message || event.reason) : 'Unknown Promise Error');
+        status.style.color = "#ff0055";
+      }
+    });
+  </script>
+</head>
+<body>
+  <!-- Canvas container -->
+  <div id="game-container"></div>
+
+  <!-- CRT scanline overlay for retro-cyber aesthetics -->
+  <div class="crt-overlay"></div>
+
+  <!-- Fullscreen Hit Flash overlay -->
+  <div id="hit-flash"></div>
+
+  <!-- 1. LOADING SCREEN -->
+  <div id="loading-screen" class="overlay active">
+    <div class="loader-content">
+      <h1 class="logo glow-cyan">NEO-FIGHT 3D</h1>
+      <p class="subtitle">3D ARENA FIGHTER</p>
+      <div class="progress-container">
+        <div id="progress-bar"></div>
+      </div>
+      <div id="loading-status">INITIALIZING SYSTEM ENGINES...</div>
+    </div>
+  </div>
+
+  <!-- 2. MAIN MENU -->
+  <div id="main-menu" class="overlay">
+    <div class="menu-box glass">
+      <h1 class="logo glow-red animate-pulse">NEO-FIGHT 3D</h1>
+      <p class="subtitle text-cyan">3D CYBER ARENA COMBAT</p>
+      
+      <div class="menu-buttons">
+        <button id="btn-pvc" class="menu-btn neon-border-cyan">SINGLE PLAYER (vs CPU)</button>
+        <button id="btn-pvp" class="menu-btn neon-border-red">LOCAL MULTIPLAYER (1v1)</button>
+        <button id="btn-controls" class="menu-btn secondary">CONTROL BINDINGS</button>
+        <button id="btn-options" class="menu-btn secondary">ACCESSIBILITY & GRAPHICS</button>
+      </div>
+
+      <div class="menu-footer">
+        <p>USE KEYBOARD OR PLUG IN GAMEPADS</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. CHARACTER SELECT -->
+  <div id="char-select" class="overlay">
+    <div class="select-container glass">
+      <h2 class="title glow-red">CHOOSE YOUR PROTOCOL</h2>
+      
+      <div class="characters-grid">
+        <div class="char-card active" data-char="vanguard">
+          <div class="char-avatar-vanguard"></div>
+          <div class="char-info">
+            <span class="char-name">VANGUARD-01</span>
+            <span class="char-type">CYBER-NINJA</span>
+            <div class="stats">
+              <div class="stat-row"><span>SPEED:</span> <div class="bar cyan" style="width: 85%"></div></div>
+              <div class="stat-row"><span>POWER:</span> <div class="bar red" style="width: 60%"></div></div>
+              <div class="stat-row"><span>ARMOR:</span> <div class="bar orange" style="width: 50%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="char-card" data-char="aegis">
+          <div class="char-avatar-aegis"></div>
+          <div class="char-info">
+            <span class="char-name">AEGIS-X</span>
+            <span class="char-type">HEAVY TITAN</span>
+            <div class="stats">
+              <div class="stat-row"><span>SPEED:</span> <div class="bar cyan" style="width: 40%"></div></div>
+              <div class="stat-row"><span>POWER:</span> <div class="bar red" style="width: 90%"></div></div>
+              <div class="stat-row"><span>ARMOR:</span> <div class="bar orange" style="width: 85%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="difficulty-select" class="difficulty-select">
+        <div class="difficulty-label">CPU DIFFICULTY</div>
+        <div class="difficulty-buttons">
+          <button class="difficulty-btn" data-difficulty="EASY">LOW</button>
+          <button class="difficulty-btn active" data-difficulty="MEDIUM">MEDIUM</button>
+          <button class="difficulty-btn" data-difficulty="HARD">HARD</button>
+        </div>
+      </div>
+
+      <div class="select-controls">
+        <button id="btn-select-confirm" class="menu-btn neon-border-red">INITIALIZE COMBAT</button>
+        <button id="btn-select-back" class="menu-btn secondary">BACK TO MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. COMBAT HUD -->
+  <div id="hud" class="hud-container">
+    <!-- P1 Life & Energy -->
+    <div class="hud-section p1-hud">
+      <div class="fighter-tag p1-tag">
+        <span id="p1-hud-name">VANGUARD-01</span>
+        <span class="ex-bar-label">EX</span>
+      </div>
+      <div class="bar-outer life-outer">
+        <div id="p1-life" class="bar-inner life-inner"></div>
+        <div id="p1-life-red" class="bar-inner life-red-recovery"></div>
+      </div>
+      <div class="bar-outer energy-outer">
+        <div id="p1-energy" class="bar-inner energy-inner"></div>
+      </div>
+    </div>
+
+    <!-- Center Timer & Round Info -->
+    <div class="hud-center">
+      <div id="round-number">ROUND 1</div>
+      <div id="fight-timer">99</div>
+      <div id="round-indicators">
+        <div class="p1-wins"><span class="dot"></span><span class="dot"></span></div>
+        <div class="p2-wins"><span class="dot"></span><span class="dot"></span></div>
+      </div>
+    </div>
+
+    <!-- P2 Life & Energy -->
+    <div class="hud-section p2-hud">
+      <div class="fighter-tag p2-tag">
+        <span id="p2-hud-name">AEGIS-X</span>
+        <span class="ex-bar-label">EX</span>
+      </div>
+      <div class="bar-outer life-outer">
+        <div id="p2-life" class="bar-inner life-inner"></div>
+        <div id="p2-life-red" class="bar-inner life-red-recovery"></div>
+      </div>
+      <div class="bar-outer energy-outer">
+        <div id="p2-energy" class="bar-inner energy-inner"></div>
+      </div>
+    </div>
+
+    <!-- Combo Counter Overlay P1 -->
+    <div id="p1-combo" class="combo-overlay p1-combo">
+      <span class="hits"><span id="p1-combo-count">2</span> HITS</span>
+      <span class="dmg"><span id="p1-combo-dmg">45</span> DMG</span>
+    </div>
+
+    <!-- Combo Counter Overlay P2 -->
+    <div id="p2-combo" class="combo-overlay p2-combo">
+      <span class="hits"><span id="p2-combo-count">2</span> HITS</span>
+      <span class="dmg"><span id="p2-combo-dmg">45</span> DMG</span>
+    </div>
+  </div>
+
+  <!-- Arena Text Overlay (e.g. FIGHT!, K.O., ROUND 1) -->
+  <div id="arena-alert" class="alert-overlay">
+    <div id="arena-alert-text">ROUND 1</div>
+  </div>
+
+  <!-- 5. PAUSE MENU -->
+  <div id="pause-menu" class="overlay">
+    <div class="menu-box glass">
+      <h2 class="title glow-cyan">SYSTEM PAUSED</h2>
+      <div class="menu-buttons">
+        <button id="btn-resume" class="menu-btn neon-border-cyan">RESUME COMBAT</button>
+        <button id="btn-pause-options" class="menu-btn secondary">SETTINGS</button>
+        <button id="btn-quit" class="menu-btn secondary">QUIT TO MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. OPTIONS MODAL -->
+  <div id="options-menu" class="overlay">
+    <div class="menu-box glass wide">
+      <h2 class="title glow-cyan">SETTINGS</h2>
+      
+      <div class="options-container">
+        <div class="option-row">
+          <label>REDUCED MOTION</label>
+          <input type="checkbox" id="opt-reduced-motion">
+        </div>
+        <div class="option-row">
+          <label>SCREEN SHAKE</label>
+          <input type="checkbox" id="opt-screen-shake" checked>
+        </div>
+        <div class="option-row">
+          <label>POST PROCESSING SHADERS</label>
+          <input type="checkbox" id="opt-shaders" checked>
+        </div>
+        <div class="option-row">
+          <label>AUDIO MASTER VOLUME</label>
+          <input type="range" id="opt-volume" min="0" max="100" value="70">
+        </div>
+      </div>
+      
+      <button id="btn-options-close" class="menu-btn secondary">SAVE & CLOSE</button>
+    </div>
+  </div>
+
+  <!-- 7. CONTROL BINDINGS MODAL -->
+  <div id="controls-menu" class="overlay">
+    <div class="menu-box glass wide">
+      <h2 class="title glow-cyan">CONTROL PROTOCOLS</h2>
+      
+      <div class="bindings-grid">
+        <div class="player-bindings">
+          <h3>PLAYER 1 (WASD)</h3>
+          <ul>
+            <li><span>Walk / Jump / Crouch:</span> <strong>A / D &nbsp; W &nbsp; S</strong></li>
+            <li><span>Block:</span> <strong>Hold Back (or R)</strong></li>
+            <li><span>Dash:</span> <strong>Double-Tap A / D</strong></li>
+            <li><span>Light Punch:</span> <strong>F</strong></li>
+            <li><span>Heavy Punch:</span> <strong>G</strong></li>
+            <li><span>Kick (Crouch = Sweep):</span> <strong>H</strong></li>
+            <li><span>EX / SUPER (full meter):</span> <strong>T</strong></li>
+          </ul>
+        </div>
+        <div class="player-bindings">
+          <h3>PLAYER 2 (ARROWS)</h3>
+          <ul>
+            <li><span>Walk / Jump / Crouch:</span> <strong>◄ / ► &nbsp; ▲ &nbsp; ▼</strong></li>
+            <li><span>Block:</span> <strong>Hold Back (or U)</strong></li>
+            <li><span>Dash:</span> <strong>Double-Tap ◄ / ►</strong></li>
+            <li><span>Light Punch:</span> <strong>J</strong></li>
+            <li><span>Heavy Punch:</span> <strong>K</strong></li>
+            <li><span>Kick (Crouch = Sweep):</span> <strong>L</strong></li>
+            <li><span>EX / SUPER (full meter):</span> <strong>I</strong></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="player-bindings" style="margin-top: 14px;">
+        <h3>COMMAND MOVES (BOTH PLAYERS)</h3>
+        <ul>
+          <li><span>HADOUKEN (Fireball):</span> <strong>↓ ↘ → + Punch</strong></li>
+          <li><span>SHORYUKEN (Rising Uppercut):</span> <strong>→ ↓ ↘ + Punch</strong></li>
+          <li><span>HURRICANE KICK:</span> <strong>↓ ↙ ← + Kick</strong></li>
+          <li><span>SUPER COMBO:</span> <strong>Special button with FULL meter</strong></li>
+        </ul>
+      </div>
+      
+      <button id="btn-controls-close" class="menu-btn secondary">CLOSE</button>
+    </div>
+  </div>
+
+  <!-- 8. GAME OVER / KO SCREEN -->
+  <div id="game-over" class="overlay">
+    <div class="menu-box glass">
+      <h2 id="winner-banner" class="logo glow-red animate-pulse">VANGUARD WINS!</h2>
+      <p id="ko-type" class="subtitle text-cyan">DECISIVE VICTORY</p>
+      
+      <div class="menu-buttons">
+        <button id="btn-rematch" class="menu-btn neon-border-cyan">REMATCH</button>
+        <button id="btn-gameover-quit" class="menu-btn secondary">QUIT TO MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. MOBILE TOUCH CONTROLS -->
+  <div id="mobile-controls">
+    <!-- Joystick P1 -->
+    <div class="mobile-joystick-container">
+      <div id="mobile-joystick" class="joystick-ring">
+        <div id="mobile-joystick-handle" class="joystick-handle"></div>
+      </div>
+    </div>
+    
+    <!-- Action buttons -->
+    <div class="mobile-buttons-container">
+      <button id="mb-btn-block" class="mobile-action-btn block">BLOCK</button>
+      <div class="buttons-grid">
+        <button id="mb-btn-jump" class="mobile-action-btn jump">JUMP</button>
+        <button id="mb-btn-light" class="mobile-action-btn light">LIGHT</button>
+        <button id="mb-btn-heavy" class="mobile-action-btn heavy">HEAVY</button>
+        <button id="mb-btn-kick" class="mobile-action-btn kick">KICK</button>
+        <button id="mb-btn-spec" class="mobile-action-btn special">SPEC</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Script Entry -->
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
